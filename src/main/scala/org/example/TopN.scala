@@ -1,10 +1,10 @@
 package org.example
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.streaming.OutputMode
+import org.apache.spark.sql.streaming.{OutputMode, Trigger}
 import org.apache.spark.sql.types._
 
-object App {
+object TopN {
 
 
   def main(args: Array[String]): Unit = {
@@ -20,7 +20,7 @@ object App {
     sparkSession.conf.set("spark.sql.streaming.schemaInference", value = true)
     sparkSession.sparkContext.setLogLevel("WARN")
 
-    val s = StructType(List(StructField("value", StringType), StructField("ts", LongType)))
+    val s = StructType(List(StructField("name", StringType), StructField("lines", LongType)))
 
 
     val r = sparkSession
@@ -29,16 +29,19 @@ object App {
       .schema(s)
       .load()
 
-    r.createTempView("w")
+    r.createTempView("tmpView")
 
     sparkSession
-      .sql("select ts, count(*) as c from w group by ts order by ts, c desc")
+      .sql("" +
+        " select name, s, row_number() over (order by s desc) rn" +
+        " from (" +
+        "   select name, sum(lines) as s from tmpView " +
+        "   group by name)")
       .writeStream
       .format("console")
+      .trigger(Trigger.ProcessingTime(100))
       .outputMode(OutputMode.Complete())
       .start()
       .awaitTermination()
   }
 }
-
-case class T(value: String, ts: String)

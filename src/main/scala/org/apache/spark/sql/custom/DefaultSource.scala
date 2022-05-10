@@ -13,7 +13,7 @@ class DefaultSource extends StreamSourceProvider with DataSourceRegister with St
                             providerName: String,
                             parameters: Map[String, String]): (String, StructType) = {
 
-    (shortName(), InMemoryRandomStrings.schema)
+    (shortName(), CodeContributionGenerator.schema)
   }
 
   override def createSource(sqlContext: SQLContext,
@@ -22,7 +22,7 @@ class DefaultSource extends StreamSourceProvider with DataSourceRegister with St
                             providerName: String,
                             parameters: Map[String, String]): Source = {
 
-    InMemoryRandomStrings(sqlContext)
+    CodeContributionGenerator(sqlContext)
   }
 
   override def shortName(): String = "InMemoryRandomStrings"
@@ -30,12 +30,10 @@ class DefaultSource extends StreamSourceProvider with DataSourceRegister with St
   override def createSink(sqlContext: SQLContext,
                           parameters: Map[String, String],
                           partitionColumns: Seq[String],
-                          outputMode: OutputMode): Sink = new Sink {
-    override def addBatch(batchId: Long, data: DataFrame): Unit = {
+                          outputMode: OutputMode): Sink = (batchId: Long, data: DataFrame) => {
 
-      println(batchId)
+    println(batchId)
 
-      data.collect().foreach(println)
-    }
+    data.collect().foreach(println)
   }
 }

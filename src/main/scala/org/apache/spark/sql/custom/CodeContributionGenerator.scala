@@ -8,14 +8,15 @@ import org.apache.spark.unsafe.types.UTF8String
 
 import scala.util.Random
 
-class InMemoryRandomStrings private (sqlContext: SQLContext) extends Source {
+class CodeContributionGenerator private(sqlContext: SQLContext) extends Source {
   private var offset: LongOffset = LongOffset(-1)
 
-  private var batches = collection.mutable.ListBuffer.empty[(String, Long)]
+  private var batches = collection.mutable.ListBuffer.empty[(String, Int, Long)]
 
   private val incrementalThread = dataGeneratorStartingThread()
+  private val inputDataCnt = 1000000
 
-  override def schema: StructType = InMemoryRandomStrings.schema
+  override def schema: StructType = CodeContributionGenerator.schema
 
   override def getOffset: Option[Offset] = this.synchronized {
     println(s"getOffset: $offset")
@@ -32,8 +33,8 @@ class InMemoryRandomStrings private (sqlContext: SQLContext) extends Source {
 
     val data = batches
       .par
-      .filter { case (_, idx) => idx >= s && idx <= e }
-      .map { case (v, _) => (v, v.length) }
+      .filter { case (_, _, idx) => idx >= s && idx <= e }
+      .map { case (v, l, _) => (v, l) }
       .seq
 
     val rdd = sqlContext
@@ -47,37 +48,39 @@ class InMemoryRandomStrings private (sqlContext: SQLContext) extends Source {
   override def commit(end: Offset): Unit = this.synchronized {
 
     val committed = convertToLongOffset(end).getOrElse(LongOffset(-1)).offset
+    this.synchronized {
+      val toKeep = batches.filter { case (_, _, idx) => idx > committed }
 
-    val toKeep = batches.filter { case (_, idx) => idx > committed }
+      println(s"after clean size ${toKeep.length}")
+      println(s"deleted: ${batches.size - toKeep.size}")
 
-    println(s"after clean size ${toKeep.length}")
-
-    println(s"deleted: ${batches.size - toKeep.size}")
-
-    batches = toKeep
+      batches = toKeep
+    }
   }
 
   override def stop(): Unit = incrementalThread.stop()
 
   private def dataGeneratorStartingThread() = {
+    val names = Seq("Пашка", "Колян", "Серега")
+
     val t = new Thread("increment") {
       setDaemon(true)
       override def run(): Unit = {
 
-        while (true) {
+        while (offset.offset < inputDataCnt) {
           try {
             this.synchronized {
               offset = offset + 1
 
-              val value = Random.nextString(Random.nextInt(5))
+              val name = names(Random.nextInt(names.size))
+              val lines = Random.nextInt(100)
 
-              batches.append((value, offset.offset))
+              batches.append((name, lines, offset.offset))
             }
           } catch {
             case e: Exception => println(e)
           }
-
-          Thread.sleep(100)
+          Thread.sleep(10)
         }
       }
 
@@ -95,9 +98,9 @@ class InMemoryRandomStrings private (sqlContext: SQLContext) extends Source {
   }
 }
 
-object InMemoryRandomStrings {
+object CodeContributionGenerator {
 
-  def apply(sqlContext: SQLContext): Source = new InMemoryRandomStrings(sqlContext)
+  def apply(sqlContext: SQLContext): Source = new CodeContributionGenerator(sqlContext)
 
-  lazy val schema = StructType(List(StructField("value", StringType), StructField("ts", LongType)))
+  lazy val schema: StructType = StructType(List(StructField("name", StringType), StructField("lines", LongType)))
 }
