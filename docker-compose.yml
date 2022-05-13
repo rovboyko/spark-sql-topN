@@ -1,0 +1,30 @@
+version: "3.7"
+
+networks:
+  net:
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.10.1/24
+
+services:
+
+  zookeeper:
+    networks:
+      - net
+    image: wurstmeister/zookeeper
+    ports:
+      - "2181:2181"
+
+  kafka-broker:
+    networks:
+      - net
+    image: wurstmeister/kafka:2.12-2.0.1
+    ports:
+      - "9092:9092"
+    environment:
+      HOSTNAME_COMMAND: "route -n | awk '/UG[ \t]/{print $$2}'"
+      KAFKA_CREATE_TOPICS: "input-topic:2:1,output-topic:4:1"
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
