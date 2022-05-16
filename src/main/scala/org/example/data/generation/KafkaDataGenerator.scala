@@ -12,7 +12,7 @@ object KafkaDataGenerator {
   val properties = new Properties()
   properties.setProperty("bootstrap.servers", "localhost:9092")
 
-  val names = Seq("Паша", "Колян", "Серега")
+  val names = Seq("Pasha", "Kolyan", "Serega")
 
   val limit = 1000000
   var sent = 0

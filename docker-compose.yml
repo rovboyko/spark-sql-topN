@@ -28,3 +28,15 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+
+  db:
+    image: mysql:5.7
+    networks:
+      - net
+    environment:
+      - MYSQL_DATABASE=flink
+      - MYSQL_ROOT_PASSWORD=pass
+    ports:
+      - '3306:3306'
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
